@@ -6,12 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-  .rules {
-  margin-top: 15px;
-  color: #888;
-  font-size: 13px;
-  line-height: 1.5;
-}
     body {
       margin: 0;
       background: #0b0b0f;
@@ -22,32 +16,7 @@
       align-items: center;
       min-height: 100vh;
     }
-    .status.wait {
-  background: #222230;
-  color: white;
-}
 
-.status.buy {
-  background: #3a2f12;
-  color: #ffd166;
-}
-
-.status.deep-buy {
-  background: #3a1515;
-  color: #ff5c5c;
-}
-
-.status.sell {
-  background: #12351f;
-  color: #4cd964;
-}
-.chart-title {
-  margin-top: 18px;
-  margin-bottom: 5px;
-  color: #aaa;
-  font-size: 15px;
-  font-weight: bold;
-}
     .card {
       background: #17171f;
       width: 90%;
@@ -81,11 +50,58 @@
       color: #4cd964;
     }
 
+    .updated {
+      margin-bottom: 10px;
+      font-size: 16px;
+      color: #ddd;
+    }
+
     .status {
       background: #222230;
       padding: 15px;
       border-radius: 15px;
       font-size: 18px;
+    }
+
+    .status.wait {
+      background: #222230;
+      color: white;
+    }
+
+    .status.dip {
+      background: #1f2438;
+      color: #8fb3ff;
+    }
+
+    .status.buy {
+      background: #3a2f12;
+      color: #ffd166;
+    }
+
+    .status.deep-buy {
+      background: #3a1515;
+      color: #ff5c5c;
+    }
+
+    .status.sell {
+      background: #12351f;
+      color: #4cd964;
+    }
+
+    .chart-title {
+      margin-top: 18px;
+      margin-bottom: 8px;
+      color: #aaa;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: transparent;
+      border-radius: 10px;
     }
 
     button {
@@ -99,6 +115,13 @@
       font-size: 18px;
       font-weight: bold;
     }
+
+    .rules {
+      margin-top: 15px;
+      color: #888;
+      font-size: 13px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 
@@ -108,122 +131,197 @@
 
     <div id="price" class="price">Loading...</div>
     <div id="change" class="change">Checking BTC price...</div>
-<div id="updated" class="updated">Last updated: --</div>
-    <div id="status" class="status">
-      Waiting for price data...
-    </div>
+    <div id="updated" class="updated">Last updated: --</div>
+
+    <div id="status" class="status wait">Waiting for price data...</div>
+
     <div class="chart-title">24-hour BTC chart</div>
-<canvas id="btcChart" width="350" height="160"></canvas>
+    <canvas id="btcChart" width="350" height="200"></canvas>
+
     <button onclick="getBitcoinPrice()">Refresh</button>
+
     <div class="rules">
-  WAIT = no buy dip<br>
-  BUY WATCH = down 3% to 5%<br>
-  DEEP BUY WATCH = down 5% or more<br>
-  SELL WATCH = up 3% or more
+      WAIT = no meaningful dip<br>
+      DIP WATCH = down 1% to 2%<br>
+      BUY WATCH = down 2% to 4%<br>
+      DEEP BUY WATCH = down 4% or more<br>
+      SELL WATCH = up 3% or more
+    </div>
   </div>
 
   <script>
-  async function getBitcoinPrice() {
-    const priceBox = document.getElementById("price");
-    const changeBox = document.getElementById("change");
-    const statusBox = document.getElementById("status");
-const updatedBox = document.getElementById("updated");
-const chart = document.getElementById("btcChart");
-    priceBox.textContent = "Loading...";
-    changeBox.textContent = "Checking BTC data...";
-    statusBox.textContent = "Waiting for price data...";
+    async function getBitcoinPrice() {
+      const priceBox = document.getElementById("price");
+      const changeBox = document.getElementById("change");
+      const statusBox = document.getElementById("status");
+      const updatedBox = document.getElementById("updated");
 
-    try {
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true"
-      );
+      priceBox.textContent = "Loading...";
+      changeBox.textContent = "Checking BTC data...";
+      statusBox.textContent = "Waiting for price data...";
+      statusBox.className = "status wait";
 
-      const data = await response.json();
+      try {
+        const response = await fetch(
+          "https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT"
+        );
 
-      const price = data.bitcoin.usd;
-      const change = data.bitcoin.usd_24h_change;
-const chartResponse = await fetch(
-  "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1"
-);
+        const data = await response.json();
 
-const chartData = await chartResponse.json();
+        const price = Number(data.lastPrice);
+        const change = Number(data.priceChangePercent);
 
-const realPrices = chartData.prices.map(item => item[1]);
+        const chartResponse = await fetch(
+          "https://api.binance.us/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=96"
+        );
 
-drawChart(realPrices, change);
-      priceBox.textContent = "$" + price.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-updatedBox.textContent = "Last updated: " + new Date().toLocaleTimeString();
-      const changeText = change.toFixed(2) + "% today";
+        const binanceData = await chartResponse.json();
 
-      if (change >= 0) {
-        changeBox.textContent = "▲ " + changeText;
-        changeBox.className = "change green";
-      } else {
-        changeBox.textContent = "▼ " + changeText;
-        changeBox.className = "change red";
+        const candles = binanceData.map(c => [
+          c[0],
+          Number(c[1]),
+          Number(c[2]),
+          Number(c[3]),
+          Number(c[4])
+        ]);
+
+        drawChart(candles);
+
+        priceBox.textContent = "$" + price.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+
+        updatedBox.textContent = "Last updated: " + new Date().toLocaleTimeString();
+
+        const changeText = Math.abs(change).toFixed(2) + "% today";
+
+        if (change >= 0) {
+          changeBox.textContent = "▲ " + changeText;
+          changeBox.className = "change green";
+        } else {
+          changeBox.textContent = "▼ -" + changeText;
+          changeBox.className = "change red";
+        }
+
+        if (change <= -4) {
+          statusBox.textContent = "DEEP BUY WATCH: BTC is down 4% or more.";
+          statusBox.className = "status deep-buy";
+        } else if (change <= -2) {
+          statusBox.textContent = "BUY WATCH: BTC is down 2% to 4%. Possible dip.";
+          statusBox.className = "status buy";
+        } else if (change <= -1) {
+          statusBox.textContent = "DIP WATCH: BTC is down 1% to 2%. Watch closely.";
+          statusBox.className = "status dip";
+        } else if (change < 0) {
+          statusBox.textContent = "WAIT: BTC is only slightly down.";
+          statusBox.className = "status wait";
+        } else if (change >= 3) {
+          statusBox.textContent = "SELL WATCH: BTC is up 3% or more. Consider profit if you bought lower.";
+          statusBox.className = "status sell";
+        } else {
+          statusBox.textContent = "WAIT: Not a buy dip right now.";
+          statusBox.className = "status wait";
+        }
+
+      } catch (error) {
+        priceBox.textContent = "Error";
+        changeBox.textContent = "Could not load BTC data.";
+        statusBox.textContent = "Binance data did not load.";
+        statusBox.className = "status wait";
+      }
+    }
+
+    function drawChart(candles) {
+      const chart = document.getElementById("btcChart");
+      const ctx = chart.getContext("2d");
+
+      ctx.clearRect(0, 0, chart.width, chart.height);
+
+      const leftPad = 12;
+      const rightPad = 58;
+      const topPad = 12;
+      const bottomPad = 18;
+
+      const plotWidth = chart.width - leftPad - rightPad;
+      const plotHeight = chart.height - topPad - bottomPad;
+
+      const highs = candles.map(c => c[2]);
+      const lows = candles.map(c => c[3]);
+
+      const maxPrice = Math.max(...highs);
+      const minPrice = Math.min(...lows);
+      const range = maxPrice - minPrice || 1;
+
+      function y(price) {
+        return topPad + (maxPrice - price) / range * plotHeight;
       }
 
-  if (change <= -5) {
-  statusBox.textContent = "DEEP BUY WATCH: BTC is down 5% or more.";
-  statusBox.className = "status deep-buy";
-} else if (change <= -3) {
-  statusBox.textContent = "BUY WATCH: BTC is down 3% to 5%. Possible dip.";
-  statusBox.className = "status buy";
-} else if (change < 0) {
-  statusBox.textContent = "WAIT: BTC is only slightly down.";
-  statusBox.className = "status wait";
-} else if (change >= 3) {
-  statusBox.textContent = "SELL WATCH: BTC is up 3% or more. Consider profit if you bought lower.";
-  statusBox.className = "status sell";
-} else {
-  statusBox.textContent = "WAIT: Not a buy dip right now.";
-  statusBox.className = "status wait";
-}
+      function x(index) {
+        return leftPad + (index / (candles.length - 1)) * plotWidth;
+      }
 
-    } catch (error) {
-      priceBox.textContent = "Error";
-      changeBox.textContent = "Could not load percent change.";
-      statusBox.textContent = "CoinGecko did not load. We may need another API.";
+      const gridCount = 5;
+      ctx.font = "12px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+
+      for (let i = 0; i < gridCount; i++) {
+        const ratio = i / (gridCount - 1);
+        const price = maxPrice - ratio * range;
+        const yPos = topPad + ratio * plotHeight;
+
+        ctx.strokeStyle = "#2a2a33";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(leftPad, yPos);
+        ctx.lineTo(chart.width - rightPad + 6, yPos);
+        ctx.stroke();
+
+        ctx.fillStyle = "#8a8a95";
+        ctx.fillText(
+          "$" + Math.round(price).toLocaleString(),
+          chart.width - 4,
+          yPos
+        );
+      }
+
+      const candleWidth = Math.max(2, plotWidth / candles.length * 0.65);
+
+      candles.forEach((candle, index) => {
+        const open = candle[1];
+        const high = candle[2];
+        const low = candle[3];
+        const close = candle[4];
+
+        const xPos = x(index);
+        const isGreen = close >= open;
+        const color = isGreen ? "#4cd964" : "#ff5c5c";
+
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        ctx.moveTo(xPos, y(high));
+        ctx.lineTo(xPos, y(low));
+        ctx.stroke();
+
+        const bodyTop = y(Math.max(open, close));
+        const bodyBottom = y(Math.min(open, close));
+        const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+
+        ctx.fillRect(
+          xPos - candleWidth / 2,
+          bodyTop,
+          candleWidth,
+          bodyHeight
+        );
+      });
     }
-  }
-function drawChart(prices, change) {
-  const chart = document.getElementById("btcChart");
-  const ctx = chart.getContext("2d");
 
-  ctx.clearRect(0, 0, chart.width, chart.height);
-
-  const padding = 20;
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  const range = maxPrice - minPrice || 1;
-
-ctx.strokeStyle = change >= 0 ? "#4cd964" : "#ff5c5c";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-
-  prices.forEach((price, index) => {
-    const x = padding + (index / (prices.length - 1)) * (chart.width - padding * 2);
-    const y = chart.height - padding - ((price - minPrice) / range) * (chart.height - padding * 2);
-
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-
-  ctx.stroke();
-
-  ctx.fillStyle = "#999";
-  ctx.font = "12px Arial";
-  ctx.fillText("$" + maxPrice.toLocaleString(), 10, 15);
-  ctx.fillText("$" + minPrice.toLocaleString(), 10, chart.height - 5);
-}
-  getBitcoinPrice();
-  setInterval(getBitcoinPrice, 60000);
-</script>
+    getBitcoinPrice();
+    setInterval(getBitcoinPrice, 60000);
+  </script>
 </body>
 </html>
