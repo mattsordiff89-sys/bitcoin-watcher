@@ -1,9 +1,24 @@
 {
   "name": "Bitcoin Watcher",
   "short_name": "BTC Watch",
-  "start_url": "bitcoin.html",
+  "start_url": "./bitcoin.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0b0b0f",
   "theme_color": "#0b0b0f",
-  "description": "Bitcoin price, chart, and buy/sell watch signals."
+  "description": "Bitcoin price, chart, and buy/sell watch signals.",
+  "icons": [
+    {
+      "src": "./bitcoin-icon-192(1).png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./bitcoin-icon-512(1).png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
