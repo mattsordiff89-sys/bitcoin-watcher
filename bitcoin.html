@@ -1,19 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <link rel="manifest" href="manifest.json">
+
   <title>Bitcoin Watcher</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
+      padding: 20px 0;
       background: #0b0b0f;
       color: white;
       font-family: Arial, sans-serif;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       min-height: 100vh;
     }
 
@@ -23,7 +35,7 @@
       max-width: 400px;
       border-radius: 25px;
       padding: 25px;
-      box-shadow: 0 0 25px rgba(0,0,0,0.5);
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
     }
 
     h1 {
@@ -39,7 +51,13 @@
 
     .change {
       font-size: 22px;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+    }
+
+    .dip-from-high {
+      color: #b7b7c7;
+      font-size: 16px;
+      margin-bottom: 18px;
     }
 
     .red {
@@ -53,19 +71,24 @@
     .updated {
       margin-bottom: 10px;
       font-size: 16px;
-      color: #ddd;
+      color: #dddddd;
     }
 
     .status {
-      background: #222230;
       padding: 15px;
       border-radius: 15px;
       font-size: 18px;
+      line-height: 1.4;
     }
 
     .status.wait {
       background: #222230;
       color: white;
+    }
+
+    .status.small-buy {
+      background: #17304a;
+      color: #72c7ff;
     }
 
     .status.dip {
@@ -91,7 +114,7 @@
     .chart-title {
       margin-top: 18px;
       margin-bottom: 8px;
-      color: #aaa;
+      color: #aaaaaa;
       font-size: 15px;
       font-weight: bold;
     }
@@ -114,13 +137,18 @@
       color: white;
       font-size: 18px;
       font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.98);
     }
 
     .rules {
       margin-top: 15px;
-      color: #888;
+      color: #888888;
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
   </style>
 </head>
@@ -129,199 +157,468 @@
   <div class="card">
     <h1>₿ Bitcoin Watcher</h1>
 
-    <div id="price" class="price">Loading...</div>
-    <div id="change" class="change">Checking BTC price...</div>
-    <div id="updated" class="updated">Last updated: --</div>
+    <div id="price" class="price">
+      Loading...
+    </div>
 
-    <div id="status" class="status wait">Waiting for price data...</div>
+    <div id="change" class="change">
+      Checking BTC price...
+    </div>
 
-    <div class="chart-title">24-hour BTC chart</div>
-    <canvas id="btcChart" width="350" height="200"></canvas>
+    <div id="dipFromHigh" class="dip-from-high">
+      Current dip from 24-hour high: --
+    </div>
 
-    <button onclick="getBitcoinPrice()">Refresh</button>
+    <div id="updated" class="updated">
+      Last updated: --
+    </div>
+
+    <div id="status" class="status wait">
+      Waiting for price data...
+    </div>
+
+    <div class="chart-title">
+      24-hour BTC chart
+    </div>
+
+    <canvas
+      id="btcChart"
+      width="350"
+      height="200"
+    ></canvas>
+
+    <button onclick="getBitcoinPrice()">
+      Refresh
+    </button>
 
     <div class="rules">
-      WAIT = no meaningful dip<br>
-      DIP WATCH = down 1% to 2%<br>
-      BUY WATCH = down 2% to 4%<br>
-      DEEP BUY WATCH = down 4% or more<br>
-      SELL WATCH = up 3% or more
+      WAIT = less than 0.5% below the 24-hour high<br>
+      SMALL BUY OK = 0.5% to 1% below the high<br>
+      DIP WATCH = 1% to 2% below the high<br>
+      BUY WATCH = 2% to 4% below the high<br>
+      DEEP BUY WATCH = 4% or more below the high<br>
+      SELL WATCH = up 3% or more in 24 hours
     </div>
   </div>
 
   <script>
     async function getBitcoinPrice() {
-      const priceBox = document.getElementById("price");
-      const changeBox = document.getElementById("change");
-      const statusBox = document.getElementById("status");
-      const updatedBox = document.getElementById("updated");
+      const priceBox =
+        document.getElementById("price");
+
+      const changeBox =
+        document.getElementById("change");
+
+      const dipBox =
+        document.getElementById("dipFromHigh");
+
+      const statusBox =
+        document.getElementById("status");
+
+      const updatedBox =
+        document.getElementById("updated");
 
       priceBox.textContent = "Loading...";
-      changeBox.textContent = "Checking BTC data...";
-      statusBox.textContent = "Waiting for price data...";
-      statusBox.className = "status wait";
+
+      changeBox.textContent =
+        "Checking BTC data...";
+
+      dipBox.textContent =
+        "Current dip from 24-hour high: --";
+
+      statusBox.textContent =
+        "Waiting for price data...";
+
+      statusBox.className =
+        "status wait";
 
       try {
         const response = await fetch(
-          "https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT"
+          "https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT",
+          {
+            cache: "no-store"
+          }
         );
 
-        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            "BTC price request failed."
+          );
+        }
 
-        const price = Number(data.lastPrice);
-        const change = Number(data.priceChangePercent);
+        const data =
+          await response.json();
+
+        const price =
+          Number(data.lastPrice);
+
+        const highPrice =
+          Number(data.highPrice);
+
+        const change =
+          Number(data.priceChangePercent);
+
+        if (
+          !Number.isFinite(price) ||
+          !Number.isFinite(highPrice) ||
+          !Number.isFinite(change) ||
+          highPrice <= 0
+        ) {
+          throw new Error(
+            "Invalid BTC price data."
+          );
+        }
+
+        const dipFromHigh =
+          ((highPrice - price) / highPrice) * 100;
 
         const chartResponse = await fetch(
-          "https://api.binance.us/api/v3/klines?symbol=BTCUSDT&interval=30m&limit=48"
+          "https://api.binance.us/api/v3/klines?symbol=BTCUSDT&interval=30m&limit=48",
+          {
+            cache: "no-store"
+          }
         );
 
-        const binanceData = await chartResponse.json();
+        if (!chartResponse.ok) {
+          throw new Error(
+            "BTC chart request failed."
+          );
+        }
 
-        const candles = binanceData.map(c => [
-          c[0],
-          Number(c[1]),
-          Number(c[2]),
-          Number(c[3]),
-          Number(c[4])
-        ]);
+        const binanceData =
+          await chartResponse.json();
+
+        const candles =
+          binanceData.map(candle => [
+            candle[0],
+            Number(candle[1]),
+            Number(candle[2]),
+            Number(candle[3]),
+            Number(candle[4])
+          ]);
 
         drawChart(candles);
 
-        priceBox.textContent = "$" + price.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        });
+        priceBox.textContent =
+          "$" +
+          price.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
 
-        updatedBox.textContent = "Last updated: " + new Date().toLocaleTimeString();
+        updatedBox.textContent =
+          "Last updated: " +
+          new Date().toLocaleTimeString();
 
-        const changeText = Math.abs(change).toFixed(2) + "% today";
+        const changeText =
+          Math.abs(change).toFixed(2) +
+          "% in 24 hours";
 
         if (change >= 0) {
-          changeBox.textContent = "▲ " + changeText;
-          changeBox.className = "change green";
+          changeBox.textContent =
+            "▲ " + changeText;
+
+          changeBox.className =
+            "change green";
         } else {
-          changeBox.textContent = "▼ -" + changeText;
-          changeBox.className = "change red";
+          changeBox.textContent =
+            "▼ -" + changeText;
+
+          changeBox.className =
+            "change red";
         }
 
-        if (change <= -4) {
-          statusBox.textContent = "DEEP BUY WATCH: BTC is down 4% or more.";
-          statusBox.className = "status deep-buy";
-        } else if (change <= -2) {
-          statusBox.textContent = "BUY WATCH: BTC is down 2% to 4%. Possible dip.";
-          statusBox.className = "status buy";
-        } else if (change <= -1) {
-          statusBox.textContent = "DIP WATCH: BTC is down 1% to 2%. Watch closely.";
-          statusBox.className = "status dip";
-        } else if (change < 0) {
-          statusBox.textContent = "WAIT: BTC is only slightly down.";
-          statusBox.className = "status wait";
+        dipBox.textContent =
+          "Current dip from 24-hour high: " +
+          dipFromHigh.toFixed(2) +
+          "%";
+
+        if (dipFromHigh >= 4) {
+          statusBox.textContent =
+            "DEEP BUY WATCH: BTC is 4% or more below its 24-hour high.";
+
+          statusBox.className =
+            "status deep-buy";
+        } else if (dipFromHigh >= 2) {
+          statusBox.textContent =
+            "BUY WATCH: BTC is 2% to 4% below its 24-hour high.";
+
+          statusBox.className =
+            "status buy";
+        } else if (dipFromHigh >= 1) {
+          statusBox.textContent =
+            "DIP WATCH: BTC is 1% to 2% below its 24-hour high.";
+
+          statusBox.className =
+            "status dip";
+        } else if (dipFromHigh >= 0.5) {
+          statusBox.textContent =
+            "SMALL BUY OK: BTC is slightly below its 24-hour high. Only use a small amount.";
+
+          statusBox.className =
+            "status small-buy";
         } else if (change >= 3) {
-          statusBox.textContent = "SELL WATCH: BTC is up 3% or more. Consider profit if you bought lower.";
-          statusBox.className = "status sell";
+          statusBox.textContent =
+            "SELL WATCH: BTC is up 3% or more in the last 24 hours.";
+
+          statusBox.className =
+            "status sell";
         } else {
-          statusBox.textContent = "WAIT: Not a buy dip right now.";
-          statusBox.className = "status wait";
+          statusBox.textContent =
+            "WAIT: BTC is still very close to its 24-hour high.";
+
+          statusBox.className =
+            "status wait";
         }
 
       } catch (error) {
-        priceBox.textContent = "Error";
-        changeBox.textContent = "Could not load BTC data.";
-        statusBox.textContent = "Binance data did not load.";
-        statusBox.className = "status wait";
+        console.error(error);
+
+        priceBox.textContent =
+          "Error";
+
+        changeBox.textContent =
+          "Could not load BTC data.";
+
+        dipBox.textContent =
+          "Current dip from 24-hour high: --";
+
+        updatedBox.textContent =
+          "Last updated: --";
+
+        statusBox.textContent =
+          "Binance data did not load.";
+
+        statusBox.className =
+          "status wait";
       }
     }
 
     function drawChart(candles) {
-      const chart = document.getElementById("btcChart");
-      const ctx = chart.getContext("2d");
+      const chart =
+        document.getElementById("btcChart");
 
-      ctx.clearRect(0, 0, chart.width, chart.height);
+      const ctx =
+        chart.getContext("2d");
+
+      ctx.clearRect(
+        0,
+        0,
+        chart.width,
+        chart.height
+      );
+
+      if (!candles || candles.length < 2) {
+        ctx.fillStyle = "#888888";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+          "Chart data unavailable",
+          chart.width / 2,
+          chart.height / 2
+        );
+
+        return;
+      }
 
       const leftPad = 12;
       const rightPad = 58;
       const topPad = 12;
       const bottomPad = 18;
 
-      const plotWidth = chart.width - leftPad - rightPad;
-      const plotHeight = chart.height - topPad - bottomPad;
+      const plotWidth =
+        chart.width -
+        leftPad -
+        rightPad;
 
-      const highs = candles.map(c => c[2]);
-      const lows = candles.map(c => c[3]);
+      const plotHeight =
+        chart.height -
+        topPad -
+        bottomPad;
 
-      const maxPrice = Math.max(...highs);
-      const minPrice = Math.min(...lows);
-      const range = maxPrice - minPrice || 1;
+      const highs =
+        candles.map(
+          candle => candle[2]
+        );
+
+      const lows =
+        candles.map(
+          candle => candle[3]
+        );
+
+      const maxPrice =
+        Math.max(...highs);
+
+      const minPrice =
+        Math.min(...lows);
+
+      const range =
+        maxPrice - minPrice || 1;
 
       function y(price) {
-        return topPad + (maxPrice - price) / range * plotHeight;
+        return (
+          topPad +
+          ((maxPrice - price) / range) *
+          plotHeight
+        );
       }
 
       function x(index) {
-        return leftPad + (index / (candles.length - 1)) * plotWidth;
+        return (
+          leftPad +
+          (index / (candles.length - 1)) *
+          plotWidth
+        );
       }
 
       const gridCount = 5;
+
       ctx.font = "12px Arial";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
 
-      for (let i = 0; i < gridCount; i++) {
-        const ratio = i / (gridCount - 1);
-        const price = maxPrice - ratio * range;
-        const yPos = topPad + ratio * plotHeight;
+      for (
+        let i = 0;
+        i < gridCount;
+        i++
+      ) {
+        const ratio =
+          i / (gridCount - 1);
 
-        ctx.strokeStyle = "#2a2a33";
+        const gridPrice =
+          maxPrice - ratio * range;
+
+        const yPosition =
+          topPad + ratio * plotHeight;
+
+        ctx.strokeStyle =
+          "#2a2a33";
+
         ctx.lineWidth = 1;
+
         ctx.beginPath();
-        ctx.moveTo(leftPad, yPos);
-        ctx.lineTo(chart.width - rightPad + 6, yPos);
+
+        ctx.moveTo(
+          leftPad,
+          yPosition
+        );
+
+        ctx.lineTo(
+          chart.width - rightPad + 6,
+          yPosition
+        );
+
         ctx.stroke();
 
-        ctx.fillStyle = "#8a8a95";
+        ctx.fillStyle =
+          "#8a8a95";
+
         ctx.fillText(
-          "$" + Math.round(price).toLocaleString(),
+          "$" +
+          Math.round(
+            gridPrice
+          ).toLocaleString(),
           chart.width - 4,
-          yPos
+          yPosition
         );
       }
 
-      const candleWidth = Math.max(4, plotWidth / candles.length * 0.8);
-
-      candles.forEach((candle, index) => {
-        const open = candle[1];
-        const high = candle[2];
-        const low = candle[3];
-        const close = candle[4];
-
-        const xPos = x(index);
-        const isGreen = close >= open;
-        const color = isGreen ? "#4cd964" : "#ff5c5c";
-
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.lineWidth = 1.2;
-
-        ctx.beginPath();
-        ctx.moveTo(xPos, y(high));
-        ctx.lineTo(xPos, y(low));
-        ctx.stroke();
-
-        const bodyTop = y(Math.max(open, close));
-        const bodyBottom = y(Math.min(open, close));
-        const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
-
-        ctx.fillRect(
-          xPos - candleWidth / 2,
-          bodyTop,
-          candleWidth,
-          bodyHeight
+      const candleWidth =
+        Math.max(
+          4,
+          (plotWidth / candles.length) *
+          0.8
         );
-      });
+
+      candles.forEach(
+        (candle, index) => {
+          const open =
+            candle[1];
+
+          const high =
+            candle[2];
+
+          const low =
+            candle[3];
+
+          const close =
+            candle[4];
+
+          const xPosition =
+            x(index);
+
+          const isGreen =
+            close >= open;
+
+          const color =
+            isGreen
+              ? "#4cd964"
+              : "#ff5c5c";
+
+          ctx.strokeStyle =
+            color;
+
+          ctx.fillStyle =
+            color;
+
+          ctx.lineWidth =
+            1.2;
+
+          ctx.beginPath();
+
+          ctx.moveTo(
+            xPosition,
+            y(high)
+          );
+
+          ctx.lineTo(
+            xPosition,
+            y(low)
+          );
+
+          ctx.stroke();
+
+          const bodyTop =
+            y(
+              Math.max(
+                open,
+                close
+              )
+            );
+
+          const bodyBottom =
+            y(
+              Math.min(
+                open,
+                close
+              )
+            );
+
+          const bodyHeight =
+            Math.max(
+              bodyBottom -
+              bodyTop,
+              2
+            );
+
+          ctx.fillRect(
+            xPosition -
+            candleWidth / 2,
+            bodyTop,
+            candleWidth,
+            bodyHeight
+          );
+        }
+      );
     }
 
     getBitcoinPrice();
-    setInterval(getBitcoinPrice, 60000);
+
+    setInterval(
+      getBitcoinPrice,
+      60000
+    );
   </script>
 </body>
 </html>
