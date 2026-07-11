@@ -1,0 +1,9 @@
+{
+  "name": "Bitcoin Watcher",
+  "short_name": "BTC Watch",
+  "start_url": "bitcoin.html",
+  "display": "standalone",
+  "background_color": "#0b0b0f",
+  "theme_color": "#0b0b0f",
+  "description": "Bitcoin price, chart, and buy/sell watch signals."
+}
